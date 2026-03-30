@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "simple-mod-manager",
+	"version": "${version}",
+	"name": "Simple-Mod-Manager",
+	"description": "Simple mod for toggling off and on mods, resource packs, etc. without touching the file system.",
+	"authors": [
+		"Guagyyy"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/Guag914/SimpleModManager"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/simple-mod-manager/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.guag.simplemodmanager.SimpleModManager"
+		]
+	},
+	"mixins": [
+		"simple-mod-manager.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.18.5",
+		"minecraft": "~26.1",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
