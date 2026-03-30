@@ -1,11 +1,11 @@
 package net.guag.simplemodmanager;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,7 +22,7 @@ public class DrawingUtils {
     private final Map<String, Identifier> iconCache = new HashMap<>();
 
     // Use Minecraft texture as the primary default (this definitely exists)
-    private static final Identifier DEFAULT_ICON = Identifier.of("simplemodmanager", "textures/gui/mod_icon.png");
+    private static final Identifier DEFAULT_ICON = Identifier.fromNamespaceAndPath("simplemodmanager", "textures/gui/mod_icon.png");
 
     private String cleanName(String filename) {
         return filename.replaceAll("\\.(jar|zip|json)$", "");
@@ -80,16 +80,16 @@ public class DrawingUtils {
                     return null;
                 }
 
-                Identifier textureId = Identifier.of("simplemodmanager", "modicon/" + modId);
+                Identifier textureId = Identifier.fromNamespaceAndPath("simplemodmanager", "modicon/" + modId);
 
                 // Simplified texture creation - remove the supplier function
-                NativeImageBackedTexture texture = new NativeImageBackedTexture(() -> "modicon/" + modId, image);
+                DynamicTexture texture = new DynamicTexture(() -> "modicon/" + modId, image);
 
                 // Register texture safely
-                MinecraftClient client = MinecraftClient.getInstance();
+                Minecraft client = Minecraft.getInstance();
                 if (client != null && client.getTextureManager() != null) {
                     try {
-                        client.getTextureManager().registerTexture(textureId, texture);
+                        client.getTextureManager().register(textureId, texture);
                         iconCache.put(modId, textureId);
                         return textureId;
                     } catch (Exception e) {
@@ -121,14 +121,14 @@ public class DrawingUtils {
         }
     }
 
-    public void renderImage(Identifier textureId, DrawContext context, int x, int y, int iconSize) {
+    public void renderImage(Identifier textureId, GuiGraphicsExtractor context, int x, int y, int iconSize) {
         if (textureId == null) {
             return;
         }
 
         try {
             RenderPipeline pipeline = RenderPipeline.builder().build();
-            context.drawTexture(
+            context.blit(
                     pipeline,
                     textureId,
                     x, y,
@@ -148,7 +148,7 @@ public class DrawingUtils {
     }
 
     // Method to render with automatic fallback
-    public void renderModIcon(ModToggle mod, DrawContext context, int x, int y, int iconSize) {
+    public void renderModIcon(ModToggle mod, GuiGraphicsExtractor context, int x, int y, int iconSize) {
         Identifier iconTexture = getModIcon(mod);
         if (iconTexture != null) {
             renderImage(iconTexture, context, x, y, iconSize);

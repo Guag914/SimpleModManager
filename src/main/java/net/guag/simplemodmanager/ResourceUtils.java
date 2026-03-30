@@ -1,13 +1,13 @@
 package net.guag.simplemodmanager;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import java.io.IOException;
 
 public class ResourceUtils {
-    private final MinecraftClient client;
+    private final Minecraft client;
 
-    public ResourceUtils(MinecraftClient client) {
+    public ResourceUtils(Minecraft client) {
         this.client = client;
     }
 

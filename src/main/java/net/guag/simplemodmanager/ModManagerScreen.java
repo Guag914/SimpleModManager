@@ -5,12 +5,18 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.Text;
+//import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
+//import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+//import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screens.Screen;
+//import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.components.Button;
+//import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.gui.components.EditBox;
+//import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,7 +27,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 public class ModManagerScreen extends Screen{
-    private final MinecraftClient client;
+    private final Minecraft client;
     private final List<ModToggle> modToggles;
     private final List<ModToggle> resourceToggles;
     private final List<ModToggle> shaderToggles;
@@ -33,28 +39,28 @@ public class ModManagerScreen extends Screen{
     private double maxScroll = 0;
     private final double scrollStep = 15;
 
-    private TextFieldWidget searchBox;
+    private EditBox searchBox;
     private String searchQuery = "";
 
     //Button Info
     int btnHeight = 20;
 
-    private final List<ButtonWidget> modToggleButtons = new ArrayList<>();
-    private final List<ButtonWidget> shaderButtons = new ArrayList<>();
-    private final List<ButtonWidget> resourceButtons = new ArrayList<>();
-    private final List<ButtonWidget> modResetButtons = new ArrayList<>();
-    private final List<ButtonWidget> modMetadataButtons = new ArrayList<>();
-    private final Map<ButtonWidget, String> tooltipMap = new HashMap<>();
-    private final List<ButtonWidget> reloadButtons = new ArrayList<>();
+    private final List<Button> modToggleButtons = new ArrayList<>();
+    private final List<Button> shaderButtons = new ArrayList<>();
+    private final List<Button> resourceButtons = new ArrayList<>();
+    private final List<Button> modResetButtons = new ArrayList<>();
+    private final List<Button> modMetadataButtons = new ArrayList<>();
+    private final Map<Button, String> tooltipMap = new HashMap<>();
+    private final List<Button> reloadButtons = new ArrayList<>();
 
-    private final List<ButtonWidget> resourceMetadataButtons = new ArrayList<>();
-    private final List<ButtonWidget> shaderMetadataButtons = new ArrayList<>();
-    private final List<ButtonWidget> resourceToggleButtons = new ArrayList<>();
-    private final List<ButtonWidget> shaderToggleButtons = new ArrayList<>();
-    private final List<ButtonWidget> resourceResetButtons = new ArrayList<>();
-    private final List<ButtonWidget> shaderResetButtons = new ArrayList<>();
+    private final List<Button> resourceMetadataButtons = new ArrayList<>();
+    private final List<Button> shaderMetadataButtons = new ArrayList<>();
+    private final List<Button> resourceToggleButtons = new ArrayList<>();
+    private final List<Button> shaderToggleButtons = new ArrayList<>();
+    private final List<Button> resourceResetButtons = new ArrayList<>();
+    private final List<Button> shaderResetButtons = new ArrayList<>();
 
-    private final List<ButtonWidget> headerButtons = new ArrayList<>();
+    private final List<Button> headerButtons = new ArrayList<>();
 
 
     public String getModId(ModToggle mod) {
@@ -86,8 +92,8 @@ public class ModManagerScreen extends Screen{
         return null;
     }
 
-    public ModManagerScreen(MinecraftClient client, List<ModToggle> modToggles, List<ModToggle> resourceToggles, List<ModToggle> shaderToggles) {
-        super(Text.of("Realism Mod Manager"));
+    public ModManagerScreen(Minecraft client, List<ModToggle> modToggles, List<ModToggle> resourceToggles, List<ModToggle> shaderToggles) {
+        super(Component.literal("Simple Mod Manager"));
         this.client = client;
         this.modToggles = modToggles;
         this.resourceToggles = resourceToggles;
@@ -190,9 +196,7 @@ public class ModManagerScreen extends Screen{
         }
     }
 
-    protected  void fillScreen(DrawContext context){
-        context.fill(0, 0, this.width, this.height, 0xFF202020);
-    }
+    protected  void fillScreen(GuiGraphicsExtractor context){ context.fill(0, 0, this.width, this.height, 0xFF202020); }
 
     @Override
     protected void init() {
@@ -206,7 +210,7 @@ public class ModManagerScreen extends Screen{
         this.resourceResetButtons.clear();
         this.headerButtons.clear();
 
-        this.clearChildren();
+        this.clearWidgets();
 
         int centerX = this.width / 2;
         int buttonWidth = 40;
@@ -217,54 +221,54 @@ public class ModManagerScreen extends Screen{
         // --- Mods ---
 
 
-        this.searchBox = new TextFieldWidget(this.textRenderer, 0, 0, this.width, 20, Text.of("Search"));
-        this.searchBox.setChangedListener(query -> {
+        this.searchBox = new EditBox(this.font, 0, 0, this.width, 20, Component.literal("Search"));
+        this.searchBox.setResponder(query -> {
             this.searchQuery = query.toLowerCase();
             // Don't call updateVisibleButtons here, let render() handle it
         });
         this.searchBox.setMaxLength(100);
         this.searchBox.setEditable(true);
-        this.addSelectableChild(this.searchBox);
+        this.addWidget(this.searchBox);
         this.setInitialFocus(this.searchBox);
 
         ModToggle.initializeDefaultDisabledMods();
 
         int index = 0;
 
-        ButtonWidget modsHeader = ButtonWidget.builder(Text.of("Mods"),
+        Button modsHeader = Button.builder(Component.literal("Mods"),
                 button -> {} // Do Nothing
-        ).dimensions(centerX, this.height - 50, 240, 20).build();
+        ).bounds(centerX, this.height - 50, 240, 20).build();
 
         modsHeader.active = false;  // Disable interaction
         headerButtons.add(modsHeader);
-        addDrawableChild(modsHeader);
+        addWidget(modsHeader);
 
         for (ModToggle toggle : modToggles) {
             String name = cleanName(toggle.getFile().getName());
 
-            ButtonWidget toggleFunc = ButtonWidget.builder(Text.literal(toggle.getButtonText().getString()), button -> {
+            Button toggleFunc = Button.builder(Component.literal(toggle.getButtonText().getString()), button -> {
                 toggle.toggle();
-                button.setMessage(Text.literal(toggle.getButtonText().getString()));
-            }).dimensions(centerX + 10, y, buttonWidth+20, buttonHeight).build();
-            addDrawableChild(toggleFunc);
+                button.setMessage(Component.literal(toggle.getButtonText().getString()));
+            }).bounds(centerX + 10, y, buttonWidth+20, buttonHeight).build();
+            addWidget(toggleFunc);
             modToggleButtons.add(toggleFunc);
 
-            ButtonWidget resetFunc = ButtonWidget.builder(Text.of("Reset"), button -> {
+            Button resetFunc = Button.builder(Component.literal("Reset"), button -> {
                 toggle.resetToDefault();
                 // Optionally update toggle button text here if needed
-            }).dimensions(centerX + 110, y, 60, buttonHeight).build();
+            }).bounds(centerX + 110, y, 60, buttonHeight).build();
 
-            addDrawableChild(resetFunc);
+            addWidget(resetFunc);
             modResetButtons.add(resetFunc);
 
             // Metadata button (left column)
-            ButtonWidget metadataFunc = ButtonWidget.builder(
-                    Text.literal(getMetadataSummaryForMod(modToggles.get(index))),
+            Button metadataFunc = Button.builder(
+                    Component.literal(getMetadataSummaryForMod(modToggles.get(index))),
                     button -> {} // no action on click
-            ).dimensions(centerX, y, 180, buttonHeight).build();
+            ).bounds(centerX, y, 180, buttonHeight).build();
 
             metadataFunc.active = false;  // disable interaction
-            addDrawableChild(metadataFunc); // add to screen
+            addWidget(metadataFunc); // add to screen
             modMetadataButtons.add(metadataFunc); // keep track of it
 
             // keep track of it
@@ -283,31 +287,31 @@ public class ModManagerScreen extends Screen{
         index = 0;
         //Index 3 = mods, index 4  = resource packs, index 5 = shader packs
 
-        ButtonWidget resourceHeader = ButtonWidget.builder(Text.of("Resource Packs"),
+        Button resourceHeader = Button.builder(Component.literal("Resource Packs"),
                 button -> {} // Do Nothing
-        ).dimensions(centerX, this.height - 50, 240, 20).build();
+        ).bounds(centerX, this.height - 50, 240, 20).build();
 
         resourceHeader.active = false;  // Disable interaction
         headerButtons.add(resourceHeader);
-        addDrawableChild(resourceHeader);
+        addWidget(resourceHeader);
 
         for (ModToggle toggle : resourceToggles) {
-            ButtonWidget resourceMetadataFunc = ButtonWidget.builder(
-                    Text.literal(resourceToggles.get(index).getFile().getName()),
+            Button resourceMetadataFunc = Button.builder(
+                    Component.literal(resourceToggles.get(index).getFile().getName()),
                     button -> {
                     } // no action on click
-            ).dimensions(centerX, y, 180, buttonHeight).build();
+            ).bounds(centerX, y, 180, buttonHeight).build();
 
             resourceMetadataFunc.active = false;  // disable interaction
-            addDrawableChild(resourceMetadataFunc); // add to screen
+            addWidget(resourceMetadataFunc); // add to screen
             resourceMetadataButtons.add(resourceMetadataFunc); // keep track of it
 
-            ButtonWidget resourceToggleFunc = ButtonWidget.builder(Text.literal(toggle.getButtonText().getString()), button -> {
+            Button resourceToggleFunc = Button.builder(Component.literal(toggle.getButtonText().getString()), button -> {
                 toggle.toggle();
                 resourceUtil.toggleResourcePack(toggle.getFile().getName(), toggle.isEnabled());
-                button.setMessage(Text.literal(toggle.getButtonText().getString()));
-            }).dimensions(centerX + 10, y, buttonWidth + 20, buttonHeight).build();
-            addDrawableChild(resourceToggleFunc);
+                button.setMessage(Component.literal(toggle.getButtonText().getString()));
+            }).bounds(centerX + 10, y, buttonWidth + 20, buttonHeight).build();
+            addWidget(resourceToggleFunc);
             resourceToggleButtons.add(resourceToggleFunc);
 
 
@@ -317,31 +321,31 @@ public class ModManagerScreen extends Screen{
 
         index = 0;
 
-        ButtonWidget shaderHeader = ButtonWidget.builder(Text.of("Shader Packs"),
+        Button shaderHeader = Button.builder(Component.literal("Shader Packs"),
                 button -> {} // Do Nothing
-        ).dimensions(centerX, this.height - 50, 240, 20).build();
+        ).bounds(centerX, this.height - 50, 240, 20).build();
 
         shaderHeader.active = false;  // Disable interaction
         headerButtons.add(shaderHeader);
-        addDrawableChild(shaderHeader);
+        addWidget(shaderHeader);
 
         for (ModToggle toggle : shaderToggles) {
-            ButtonWidget shaderMetadataFunc = ButtonWidget.builder(
-                    Text.literal(shaderToggles.get(index).getFile().getName()),
+            Button shaderMetadataFunc = Button.builder(
+                    Component.literal(shaderToggles.get(index).getFile().getName()),
                     button -> {
                     } // no action on click
-            ).dimensions(centerX, y, 180, buttonHeight).build();
+            ).bounds(centerX, y, 180, buttonHeight).build();
 
             shaderMetadataFunc.active = false;  // disable interaction
-            addDrawableChild(shaderMetadataFunc); // add to screen
+            addWidget(shaderMetadataFunc); // add to screen
             shaderMetadataButtons.add(shaderMetadataFunc); // keep track of it
 
-            ButtonWidget shaderToggleFunc = ButtonWidget.builder(Text.literal(toggle.getButtonText().getString()), button -> {
+            Button shaderToggleFunc = Button.builder(Component.literal(toggle.getButtonText().getString()), button -> {
                 toggle.toggle();
                 resourceUtil.toggleShaderPack(toggle.getFile().getName(), toggle.isEnabled());
-                button.setMessage(Text.literal(toggle.getButtonText().getString()));
-            }).dimensions(centerX + 10, y, buttonWidth + 20, buttonHeight).build();
-            addDrawableChild(shaderToggleFunc);
+                button.setMessage(Component.literal(toggle.getButtonText().getString()));
+            }).bounds(centerX + 10, y, buttonWidth + 20, buttonHeight).build();
+            addWidget(shaderToggleFunc);
             shaderToggleButtons.add(shaderToggleFunc);
 
 
@@ -349,28 +353,28 @@ public class ModManagerScreen extends Screen{
             index += 1;
         }
 
-        ButtonWidget resourceFunc = ButtonWidget.builder(Text.of("Refresh Resources"), b -> {
-            MinecraftClient.getInstance().reloadResources();
+        Button resourceFunc = Button.builder(Component.literal("Refresh Resources"), b -> {
+            Minecraft.getInstance().reloadResourcePacks();
             client.setScreen(null);
-        }).dimensions(centerX, y, 240, btnHeight).build();
+        }).bounds(centerX, y, 240, btnHeight).build();
         reloadButtons.add(resourceFunc);
-        addDrawableChild(resourceFunc);
+        addWidget(resourceFunc);
 
         int contentHeight = y + 20;
         int buttonY = this.height - 50;
 
-        ButtonWidget applyFunc = ButtonWidget.builder(Text.of("Apply Changes"), button -> {
+        Button applyFunc = Button.builder(Component.literal("Apply Changes"), button -> {
             for (ModToggle toggle : modToggles) toggle.applyChange();
-            MinecraftClient.getInstance().reloadResources();
-        }).dimensions(centerX - 130, 10, 120, 20).build();
+            Minecraft.getInstance().reloadResourcePacks();
+        }).bounds(centerX - 130, 10, 120, 20).build();
         headerButtons.add(applyFunc);
-        addDrawableChild(applyFunc);
+        addWidget(applyFunc);
 
-        ButtonWidget cancelFunc = ButtonWidget.builder(Text.of("Cancel"), button -> {
+        Button cancelFunc = Button.builder(Component.literal("Cancel"), button -> {
             client.setScreen(null);
-        }).dimensions(centerX + 10, 10, 120, 20).build();
+        }).bounds(centerX + 10, 10, 120, 20).build();
         headerButtons.add(cancelFunc);
-        addDrawableChild(cancelFunc);
+        addWidget(cancelFunc);
 
         tooltipMap.put(applyFunc, "Restart the game to apply changes to mod settings.");
         maxScroll = Math.max(0, contentHeight+200 /** change content height to scroll less/more on screen**/ - (this.height - 80));
@@ -378,7 +382,7 @@ public class ModManagerScreen extends Screen{
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         //Index 3 = mods, index 4  = resource packs, index 5 = shader packs (headers)
         context.fill(0, 0, this.width, this.height, 0xFF202020);
 
@@ -386,12 +390,12 @@ public class ModManagerScreen extends Screen{
         updateVisibleButtonsBasedOnSearch();
 
         // Then render tooltips for visible buttons
-        for (Map.Entry<ButtonWidget, String> entry : tooltipMap.entrySet()) {
-            ButtonWidget button = entry.getKey();
+        for (Map.Entry<Button, String> entry : tooltipMap.entrySet()) {
+            Button button = entry.getKey();
             if (button.isHovered() && button.visible) {
-                context.drawTooltip(
-                        MinecraftClient.getInstance().textRenderer,
-                        Text.literal(entry.getValue()),
+                context.setComponentTooltipForNextFrame(
+                        Minecraft.getInstance().font,
+                        Collections.singletonList(Component.literal(entry.getValue())),
                         mouseX,
                         mouseY
                 );
@@ -414,11 +418,11 @@ public class ModManagerScreen extends Screen{
         // Only render if there are visible mods or if search is empty
         boolean hasVisibleMods = hasVisibleItemsInCategory("mods");
         if (hasVisibleMods || searchQuery.isEmpty()) {
-            ButtonWidget modsHeader = headerButtons.getFirst();
+            Button modsHeader = headerButtons.getFirst();
             modsHeader.setX(centerX-120);
             modsHeader.setY(y);
             if (hasVisibleMods || searchQuery.isEmpty()) {
-                modsHeader.render(context, mouseX, mouseY, delta);
+                modsHeader.extractRenderState(context, mouseX, mouseY, delta);
             }
             y += 25;
         }
@@ -430,21 +434,21 @@ public class ModManagerScreen extends Screen{
             drawUtil.renderModIcon(modToggles.get(i), context, col1X - offset, y, 20);
 
             // Position and render toggle button
-            ButtonWidget toggleBtn = modToggleButtons.get(i);
+            Button toggleBtn = modToggleButtons.get(i);
             toggleBtn.setX(col2X);
             toggleBtn.setY(y);
-            toggleBtn.render(context, mouseX, mouseY, delta);
+            toggleBtn.extractRenderState(context, mouseX, mouseY, delta);
 
             // Position and render reset button
-            ButtonWidget resetBtn = modResetButtons.get(i);
+            Button resetBtn = modResetButtons.get(i);
             resetBtn.setX(col3X);
             resetBtn.setY(y);
-            resetBtn.render(context, mouseX, mouseY, delta);
+            resetBtn.extractRenderState(context, mouseX, mouseY, delta);
 
-            ButtonWidget metadataBtn = modMetadataButtons.get(i);
+            Button metadataBtn = modMetadataButtons.get(i);
             metadataBtn.setX(col1X);
             metadataBtn.setY(y);
-            metadataBtn.render(context, mouseX, mouseY, delta);
+            metadataBtn.extractRenderState(context, mouseX, mouseY, delta);
 
             y += 25; // spacing between rows
         }
@@ -453,10 +457,10 @@ public class ModManagerScreen extends Screen{
         boolean hasVisibleResources = hasVisibleItemsInCategory("resourcepacks");
         if (hasVisibleResources || searchQuery.isEmpty()) {
             y += 25;
-            ButtonWidget resourceHeader = headerButtons.get(1);
+            Button resourceHeader = headerButtons.get(1);
             resourceHeader.setX(centerX-120);
             resourceHeader.setY(y);
-            resourceHeader.render(context, mouseX, mouseY, delta);
+            resourceHeader.extractRenderState(context, mouseX, mouseY, delta);
             y += 25;
         }
 
@@ -467,15 +471,15 @@ public class ModManagerScreen extends Screen{
             drawUtil.renderModIcon(resourceToggles.get(i), context, col1X - offset, y, 20);
 
             //Position and render toggle button
-            ButtonWidget resourceToggleBtn = resourceToggleButtons.get(i);
+            Button resourceToggleBtn = resourceToggleButtons.get(i);
             resourceToggleBtn.setX(col2X+30);
             resourceToggleBtn.setY(y);
-            resourceToggleBtn.render(context, mouseX, mouseY, delta);
+            resourceToggleBtn.extractRenderState(context, mouseX, mouseY, delta);
 
-            ButtonWidget resourceMetadataBtn = resourceMetadataButtons.get(i);
+            Button resourceMetadataBtn = resourceMetadataButtons.get(i);
             resourceMetadataBtn.setX(col1X+30);
             resourceMetadataBtn.setY(y);
-            resourceMetadataBtn.render(context, mouseX, mouseY, delta);
+            resourceMetadataBtn.extractRenderState(context, mouseX, mouseY, delta);
 
             y += 25; // spacing between rows
         }
@@ -484,10 +488,10 @@ public class ModManagerScreen extends Screen{
         boolean hasVisibleShaders = hasVisibleItemsInCategory("shaderpacks");
         if (hasVisibleShaders || searchQuery.isEmpty()) {
             y += 25;
-            ButtonWidget shaderHeader = headerButtons.get(2);
+            Button shaderHeader = headerButtons.get(2);
             shaderHeader.setX(centerX-120);
             shaderHeader.setY(y);
-            shaderHeader.render(context, mouseX, mouseY, delta);
+            shaderHeader.extractRenderState(context, mouseX, mouseY, delta);
             y += 25;
         }
 
@@ -498,45 +502,45 @@ public class ModManagerScreen extends Screen{
             drawUtil.renderModIcon(shaderToggles.get(i), context, col1X - offset, y, 20);
 
             // Position and render toggle button
-            ButtonWidget shaderToggleBtn = shaderToggleButtons.get(i);
+            Button shaderToggleBtn = shaderToggleButtons.get(i);
             shaderToggleBtn.setX(col2X+30);
             shaderToggleBtn.setY(y);
-            shaderToggleBtn.render(context, mouseX, mouseY, delta);
+            shaderToggleBtn.extractRenderState(context, mouseX, mouseY, delta);
 
-            ButtonWidget shaderMetadataBtn = shaderMetadataButtons.get(i);
+            Button shaderMetadataBtn = shaderMetadataButtons.get(i);
             shaderMetadataBtn.setX(col1X+30);
             shaderMetadataBtn.setY(y);
-            shaderMetadataBtn.render(context, mouseX, mouseY, delta);
+            shaderMetadataBtn.extractRenderState(context, mouseX, mouseY, delta);
 
             y += 25; // spacing between rows
         }
 
         y += 25;
 
-        ButtonWidget resourceButton = reloadButtons.getFirst();
+        Button resourceButton = reloadButtons.getFirst();
         resourceButton.setX(centerX-120);
         resourceButton.setY(y);
-        resourceButton.render(context, mouseX, mouseY, delta);
+        resourceButton.extractRenderState(context, mouseX, mouseY, delta);
 
         y +=25;
 
-        ButtonWidget applyBtn = headerButtons.get(3);
+        Button applyBtn = headerButtons.get(3);
         applyBtn.setX(centerX - 130);
         applyBtn.setY(y);
-        applyBtn.render(context, mouseX, mouseY, delta);
+        applyBtn.extractRenderState(context, mouseX, mouseY, delta);
 
-        ButtonWidget cancelBtn = headerButtons.get(4);
+        Button cancelBtn = headerButtons.get(4);
         cancelBtn.setX(centerX + 10);
         cancelBtn.setY(y);
-        cancelBtn.render(context, mouseX, mouseY, delta);
+        cancelBtn.extractRenderState(context, mouseX, mouseY, delta);
 
         y += btnHeight + spacing;// move y down for any following content
 
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
 
         context.fillGradient(0, 20, this.width, 30, 0xC0000000, 0x00000000);
         context.fillGradient(0, this.height-10, this.width, this.height, 0x00000000, 0xC0000000);
-        this.searchBox.render(context, mouseX, mouseY, delta);
+        this.searchBox.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     @Override
@@ -548,25 +552,6 @@ public class ModManagerScreen extends Screen{
 
     private String cleanName(String filename) {
         return filename.replaceAll("\\.(jar|zip|json)$", "");
-    }
-
-    private void updateShaderpackButtons(String selected) {
-        for (ButtonWidget btn : shaderButtons) {
-            boolean isSelected = cleanName(selected).equals(btn.getMessage().getString());
-            btn.active = !isSelected;
-        }
-    }
-
-    private void updateResourcepackButtons(String selected) {
-        for (ButtonWidget btn : resourceButtons) {
-            boolean isSelected = cleanName(selected).equals(btn.getMessage().getString());
-            btn.active = !isSelected;
-        }
-    }
-
-    @Override
-    public boolean shouldPause() {
-        return false;
     }
 
     private boolean hasVisibleItemsInCategory(String category) {
@@ -635,7 +620,7 @@ public class ModManagerScreen extends Screen{
         if (type.equals("mods")){
             for (int i = 0; i < modToggles.size(); i++) {
                 ModToggle toggle = modToggles.get(i);
-                ButtonWidget btn = modToggleButtons.get(i);
+                Button btn = modToggleButtons.get(i);
                 btn.setMessage(toggle.getButtonText());
                 btn.active = true;
 
@@ -643,7 +628,7 @@ public class ModManagerScreen extends Screen{
         } else if (type.equals("resourcepacks")){
             for (int i = 0; i < resourceToggles.size(); i++) {
                 ModToggle toggle = resourceToggles.get(i);
-                ButtonWidget btn = resourceToggleButtons.get(i);
+                Button btn = resourceToggleButtons.get(i);
                 btn.setMessage(toggle.getButtonText());
                 btn.active = true;
 
@@ -651,13 +636,13 @@ public class ModManagerScreen extends Screen{
         } else if (type.equals("shaderpacks")){
             for (int i = 0; i < shaderToggles.size(); i++) {
                 ModToggle toggle = shaderToggles.get(i);
-                ButtonWidget btn = shaderToggleButtons.get(i);
+                Button btn = shaderToggleButtons.get(i);
                 btn.setMessage(toggle.getButtonText());
                 btn.active = true;
             }
         } else if (type.equals("headers")){
             for (int i = 0; i < headerButtons.size(); i++) {
-                ButtonWidget btn = headerButtons.get(i);
+                Button btn = headerButtons.get(i);
                 if (!(btn.active == true)){btn.active = false;}
                 else if (btn.active == true){btn.active = true;}
 
