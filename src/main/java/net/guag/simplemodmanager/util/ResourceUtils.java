@@ -1,21 +1,20 @@
-package net.guag.simplemodmanager;
+package net.guag.simplemodmanager.util;
 
-import net.minecraft.client.Minecraft;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 public class ResourceUtils {
-    private final Minecraft client;
+    public static final Logger LOGGER = LoggerFactory.getLogger("simplemodmanager");
 
-    public ResourceUtils(Minecraft client) {
-        this.client = client;
-    }
+    public ResourceUtils() {}
 
     public void toggleResourcePack(String packName, boolean enable) {
         try {
             ModUtils.moveResourcePack(packName, enable);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Failed to {} resource pack: {}", enable ? "enable" : "disable", packName, e);
         }
     }
 
@@ -23,7 +22,7 @@ public class ResourceUtils {
         try {
             ModUtils.moveShaderPack(packName, enable);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Failed to {} shader pack: {}", enable ? "enable" : "disable", packName, e);
         }
     }
 }

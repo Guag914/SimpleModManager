@@ -3,7 +3,7 @@
 	"id": "simple-mod-manager",
 	"version": "${version}",
 	"name": "Simple-Mod-Manager",
-	"description": "Simple mod for toggling off and on mods, resource packs, etc. without touching the file system.",
+	"description": "A simple mod for toggling off and on mods, resource packs, and shaders, without touching the file system.",
 	"authors": [
 		"Guagyyy"
 	],

@@ -1,4 +1,8 @@
-package net.guag.simplemodmanager;
+package net.guag.simplemodmanager.util;
+
+import net.guag.simplemodmanager.screen.ModToggle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,15 +22,30 @@ public class ModUtils {
     public static final File SHADERPACKS_FOLDER = new File("shaderpacks");
     public static final File DISABLED_SHADERPACKS_FOLDER = new File("shaderpacks","disabled-shaderpacks");
 
+    public static final Logger LOGGER = LoggerFactory.getLogger("simplemodmanager");
+
+
     static {
-        // Ensure all folders exist.
-        MODS_FOLDER.mkdirs();
-        DISABLED_MODS_FOLDER.mkdirs();
-        RESOURCEPACKS_FOLDER.mkdirs();
-        DISABLED_RESOURCEPACKS_FOLDER.mkdirs();
-        SHADERPACKS_FOLDER.mkdirs();
-        DISABLED_SHADERPACKS_FOLDER.mkdirs();
+        // Collect all paths into a list for clean, iterative processing
+        List<File> folders = List.of(
+                MODS_FOLDER,
+                DISABLED_MODS_FOLDER,
+                RESOURCEPACKS_FOLDER,
+                DISABLED_RESOURCEPACKS_FOLDER,
+                SHADERPACKS_FOLDER,
+                DISABLED_SHADERPACKS_FOLDER
+        );
+
+        for (File folder : folders) {
+            try { java.nio.file.Files.createDirectories(folder.toPath());
+            } catch (java.io.IOException e) {
+                LOGGER.error("Critical: Could not initialize mod directory: {}", folder.getAbsolutePath(), e);
+            } catch (Exception e) {
+                LOGGER.error("Unexpected error during directory setup for {}", folder.getName(), e);
+            }
+        }
     }
+
 
     // Moves a mod .jar into the active mods folder.
     public static File moveModToEnabled(File modFile) throws IOException {
@@ -37,8 +56,8 @@ public class ModUtils {
 
     // Moves a mod .jar into the disabled mods folder.
     public static File moveModToDisabled(File modFile) throws IOException {
-        File newFile = new File(MODS_FOLDER, modFile.getName());
-        Files.move(modFile.toPath(), new File(DISABLED_MODS_FOLDER, modFile.getName()).toPath(), StandardCopyOption.REPLACE_EXISTING);
+        File newFile = new File(DISABLED_MODS_FOLDER, modFile.getName()); // ← correct folder
+        Files.move(modFile.toPath(), newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         return newFile;
     }
 
@@ -59,8 +78,8 @@ public class ModUtils {
     // Scan the active and disabled mods folders and return a list of ModToggle objects.
     public static List<ModToggle> getModToggles() {
         List<ModToggle> toggles = new ArrayList<>();
-        File[] enabled = MODS_FOLDER.listFiles((dir, name) -> name.endsWith(".jar"));
-        File[] disabled = DISABLED_MODS_FOLDER.listFiles((dir, name) -> name.endsWith(".jar"));
+        File[] enabled = MODS_FOLDER.listFiles((_, name) -> name.endsWith(".jar"));
+        File[] disabled = DISABLED_MODS_FOLDER.listFiles((_, name) -> name.endsWith(".jar"));
 
         if (enabled != null) {
             for (File f : enabled) {
@@ -77,8 +96,8 @@ public class ModUtils {
 
     public static List<ModToggle> getResourceToggles() {
         List<ModToggle> ResourceToggles = new ArrayList<>();
-        File[] enabled = RESOURCEPACKS_FOLDER.listFiles((dir, name) -> !(name.endsWith(".txt")) && !(name.endsWith(".DS_Store")) && !(name.contains("disabled-resourcepacks")));
-        File[] disabled = DISABLED_RESOURCEPACKS_FOLDER.listFiles((dir, name) -> !(name.endsWith(".txt")) && !(name.endsWith(".DS_Store"))&& !(name.contains("disabled-resourcepacks")));
+        File[] enabled = RESOURCEPACKS_FOLDER.listFiles((_, name) -> !(name.endsWith(".txt")) && !(name.endsWith(".DS_Store")) && !(name.contains("disabled-resourcepacks")));
+        File[] disabled = DISABLED_RESOURCEPACKS_FOLDER.listFiles((_, name) -> !(name.endsWith(".txt")) && !(name.endsWith(".DS_Store"))&& !(name.contains("disabled-resourcepacks")));
 
         if (enabled != null) {
             for (File f : enabled) {
@@ -95,8 +114,8 @@ public class ModUtils {
 
     public static List<ModToggle> getShaderToggles() {
         List<ModToggle> shaderToggles = new ArrayList<>();
-        File[] enabled = SHADERPACKS_FOLDER.listFiles((dir, name) ->!(name.endsWith(".txt")) && !(name.endsWith(".DS_Store"))&& !(name.contains("disabled-shaderpacks")));
-        File[] disabled = DISABLED_SHADERPACKS_FOLDER.listFiles((dir, name) -> !(name.endsWith(".txt")) && !(name.endsWith(".DS_Store"))&& !(name.contains("disabled-shaderpacks")));
+        File[] enabled = SHADERPACKS_FOLDER.listFiles((_, name) ->!(name.endsWith(".txt")) && !(name.endsWith(".DS_Store"))&& !(name.contains("disabled-shaderpacks")));
+        File[] disabled = DISABLED_SHADERPACKS_FOLDER.listFiles((_, name) -> !(name.endsWith(".txt")) && !(name.endsWith(".DS_Store"))&& !(name.contains("disabled-shaderpacks")));
 
 
         if (enabled != null) {

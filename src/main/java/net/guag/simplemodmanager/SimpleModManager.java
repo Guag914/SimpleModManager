@@ -4,21 +4,18 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.guag.simplemodmanager.screen.ModManagerScreen;
+import net.guag.simplemodmanager.util.ModUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.io.File;
 
 import net.fabricmc.api.ModInitializer;
 
 
 public class SimpleModManager implements ModInitializer, ClientModInitializer {
 	private static KeyMapping openUIBinding;
-
 
 	@Override
 	public void onInitialize() {
@@ -38,7 +35,7 @@ public class SimpleModManager implements ModInitializer, ClientModInitializer {
 		));
 
 		// On each client tick, if F8 is pressed and no screen is open, open the GUI.
-		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+		ClientTickEvents.END_CLIENT_TICK.register(_ -> {
 			while (openUIBinding.consumeClick()) {
 				Minecraft mc = Minecraft.getInstance();
 				if (mc.screen == null) {
