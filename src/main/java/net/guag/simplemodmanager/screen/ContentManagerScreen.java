@@ -1,27 +1,28 @@
 package net.guag.simplemodmanager.screen;
 
 import net.guag.simplemodmanager.util.DrawingUtils;
-import net.guag.simplemodmanager.util.ResourceUtils;
 import net.guag.simplemodmanager.widgets.CustomButtonWidget;
 import net.guag.simplemodmanager.widgets.CustomTextWidget;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
-import org.jetbrains.annotations.NotNull;
 
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
 
-public class ModManagerScreen extends Screen{
+public class ContentManagerScreen extends Screen{
 
     private final Minecraft client;
-    private final List<ModToggle> modToggles;
-    private final List<ModToggle> resourceToggles;
-    private final List<ModToggle> shaderToggles;
+    private final List<FileToggle> modToggles;
+    private final List<FileToggle> resourceToggles;
+    private final List<FileToggle> shaderToggles;
 
     DrawingUtils drawUtil = new DrawingUtils();
 
@@ -50,8 +51,9 @@ public class ModManagerScreen extends Screen{
 
     private final List<Button> headerButtons = new ArrayList<>();
 
+    private static final ArrayList<String> dependencies = new ArrayList<>();
 
-    public ModManagerScreen(Minecraft client, List<ModToggle> modToggles, List<ModToggle> resourceToggles, List<ModToggle> shaderToggles) {
+    public ContentManagerScreen(Minecraft client, List<FileToggle> modToggles, List<FileToggle> resourceToggles, List<FileToggle> shaderToggles) {
         super(Component.literal("Simple Mod Manager"));
         this.client = client;
         this.modToggles = modToggles;
@@ -61,7 +63,6 @@ public class ModManagerScreen extends Screen{
 
     @Override
     protected void init() {
-        ResourceUtils resourceUtil = new ResourceUtils();
         this.modToggleButtons.clear();
         this.modResetButtons.clear();
         this.modMetadataButtons.clear();
@@ -91,7 +92,7 @@ public class ModManagerScreen extends Screen{
         // Tab buttons
         int tabY = 42;
         int tabSpacing = 4;
-        int tabW = (this.width - 20 - tabSpacing * 2) / 3; // 20 = 10px from each edge
+        int tabW = (this.width - 20 - tabSpacing * 2) / 3; // 20 = 10 px from each edge
         int tabStartX = 10;
         Button modsTab = CustomButtonWidget.builder(Component.literal("Mods"), _ -> { activeTab = "mods"; updateScroll(); })
                 .bounds(tabStartX, tabY, tabW, 18).build();
@@ -107,23 +108,51 @@ public class ModManagerScreen extends Screen{
         addWidget(resourcesTab);
         addWidget(shadersTab);
 
-        ModToggle.initializeDefaultDisabledMods();
+        FileToggle.initializeDefaultDisabledMods();
 
         int index = 0;
-        for (ModToggle toggle : modToggles) {
-            Button toggleFunc = Button.builder(Component.literal(toggle.getButtonText().getString()), button -> {
-                toggle.toggled();
-                button.setMessage(Component.literal(toggle.getButtonText().getString()));
+
+        //get dependencies
+        for (FileToggle toggle : modToggles) {
+            for (String dependency : toggle.getDependencies()) {
+                if (!dependencies.contains(dependency)) dependencies.add(dependency);
+            }
+        }
+
+        //sort putting non-toggleable mods last
+        modToggles.sort((a, b) -> {
+            boolean aDep = dependencies.contains(a.getModId());
+            boolean bDep = dependencies.contains(b.getModId());
+            if (aDep != bDep) return Boolean.compare(aDep, bDep); // dependencies last
+            return Boolean.compare(!a.isEnabled(), !b.isEnabled()); // disabled last within each group
+        });
+
+        for (FileToggle toggle : modToggles) {
+            Button toggleFunc =  Button.builder(Component.literal(toggle.getButtonText().getString()), button -> {
+                if (!dependencies.contains(toggle.getModId())){
+                    toggle.toggled();
+                    button.setMessage(Component.literal(toggle.getButtonText().getString()));
+                } else {
+                    button.setTooltip(Tooltip.create(Component.literal("§7Dependency")));
+                }
             }).bounds(0, 0, 60, btnHeight).build();
+
+            toggleFunc.active = !dependencies.contains(toggle.getModId()); //set toggle state depending on if it's a dependency
+//            System.out.println(toggle.getModId() + (dependencies.contains(toggle.getModId()) ? " IS dependency " : " is NOT dependency"));
+//            System.out.println(dependencies);
+
             addWidget(toggleFunc);
             modToggleButtons.add(toggleFunc);
 
             // capture before lambda
             Button resetFunc = Button.builder(Component.literal("Reset"), _ -> {
-                toggle.resetToDefault();
-                toggleFunc.setMessage(Component.literal(toggle.getButtonText().getString()));
+                if (!dependencies.contains(toggle.getModId())){
+                    toggle.resetToDefault();
+                    toggleFunc.setMessage(Component.literal(toggle.getButtonText().getString()));
+                }
             }).bounds(0, 0, 50, btnHeight).build();
-            addWidget(resetFunc); // ← add this
+            resetFunc.active = !dependencies.contains(toggle.getModId());
+            addWidget(resetFunc);
             modResetButtons.add(resetFunc);
 
             Button metadataFunc = Button.builder(
@@ -137,7 +166,7 @@ public class ModManagerScreen extends Screen{
         }
 
         index = 0;
-        for (ModToggle toggle : resourceToggles) {
+        for (FileToggle toggle : resourceToggles) {
             Button resourceMetadataFunc = Button.builder(
                     Component.literal(resourceToggles.get(index).getFile().getName()), _ -> {}
             ).bounds(0, 0, 0, btnHeight).build();
@@ -147,7 +176,6 @@ public class ModManagerScreen extends Screen{
 
             Button resourceToggleFunc = Button.builder(Component.literal(toggle.getButtonText().getString()), button -> {
                 toggle.toggled();
-                resourceUtil.toggleResourcePack(toggle.getFile().getName(), toggle.isEnabled());
                 button.setMessage(Component.literal(toggle.getButtonText().getString()));
             }).bounds(0, 0, 60, btnHeight).build();
             addWidget(resourceToggleFunc);
@@ -156,7 +184,7 @@ public class ModManagerScreen extends Screen{
         }
 
         index = 0;
-        for (ModToggle toggle : shaderToggles) {
+        for (FileToggle toggle : shaderToggles) {
             Button shaderMetadataFunc = Button.builder(
                     Component.literal(shaderToggles.get(index).getFile().getName()), _ -> {}
             ).bounds(0, 0, 0, btnHeight).build();
@@ -166,7 +194,6 @@ public class ModManagerScreen extends Screen{
 
             Button shaderToggleFunc = Button.builder(Component.literal(toggle.getButtonText().getString()), button -> {
                 toggle.toggled();
-                resourceUtil.toggleShaderPack(toggle.getFile().getName(), toggle.isEnabled());
                 button.setMessage(Component.literal(toggle.getButtonText().getString()));
             }).bounds(0, 0, 60, btnHeight).build();
             addWidget(shaderToggleFunc);
@@ -174,14 +201,11 @@ public class ModManagerScreen extends Screen{
             index++;
         }
 
-        Button resourceFunc = Button.builder(Component.literal("Refresh Resources"), _ -> {
-            Minecraft.getInstance().reloadResourcePacks();
-            client.setScreen(null);
-        }).bounds(0, 0, 160, btnHeight).build();
-        addWidget(resourceFunc);
-
         Button applyFunc = Button.builder(Component.literal("Apply Changes"), _ -> {
-            for (ModToggle toggle : modToggles) toggle.applyChange();
+            for (FileToggle toggle : modToggles) toggle.applyChange("mod");
+            for (FileToggle toggle : resourceToggles) toggle.applyChange("resourcepack"); //FileUtils.toggleResourcePack(toggle.getFile().getName(), toggle.isEnabled());
+            for (FileToggle toggle : shaderToggles) toggle.applyChange("shaderpack"); //FileUtils.toggleShaderPack(toggle.getFile().getName(), toggle.isEnabled());
+
             client.setScreen(null);
             Minecraft.getInstance().reloadResourcePacks();
         }).bounds(0, 0, 120, btnHeight).build();
@@ -230,7 +254,7 @@ public class ModManagerScreen extends Screen{
         int toggleX = this.width - 190;
         int resetX = this.width - 120;
 
-        //button container fill first so buttons are on top
+        //button container fills first so buttons are on top
         context.fill(10, listTop, this.width - 10, listBottom, 0x88111111);
 
 
@@ -239,7 +263,7 @@ public class ModManagerScreen extends Screen{
         switch (activeTab) {
             case "mods" -> {
                 for (int i = 0; i < modToggles.size(); i++) {
-                    ModToggle toggle = modToggles.get(i);
+                    FileToggle toggle = modToggles.get(i);
 
                     // always increment y and skip if filtered
                     if (!toggle.getDisplayName().toLowerCase().contains(searchQuery)) {
@@ -282,7 +306,7 @@ public class ModManagerScreen extends Screen{
             }
             case "resourcepacks" -> {
                 for (int i = 0; i < resourceToggles.size(); i++) {
-                    ModToggle toggle = resourceToggles.get(i);
+                    FileToggle toggle = resourceToggles.get(i);
 
                     // always increment y and skip if filtered
                     if (!toggle.getDisplayName().toLowerCase().contains(searchQuery)) {
@@ -319,7 +343,7 @@ public class ModManagerScreen extends Screen{
             }
             case "shaderpacks" -> {
                 for (int i = 0; i < shaderToggles.size(); i++) {
-                    ModToggle toggle = shaderToggles.get(i);
+                    FileToggle toggle = shaderToggles.get(i);
 
                     // always increment y and skip if filtered
                     if (!toggle.getDisplayName().toLowerCase().contains(searchQuery)) {
@@ -421,5 +445,4 @@ public class ModManagerScreen extends Screen{
             shaderMetadataButtons.get(i).visible = show;
         }
     }
-
 }

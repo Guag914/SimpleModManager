@@ -1,18 +1,21 @@
 package net.guag.simplemodmanager;
 
 import com.mojang.blaze3d.platform.InputConstants;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
-import net.guag.simplemodmanager.screen.ModManagerScreen;
-import net.guag.simplemodmanager.util.ModUtils;
+import net.fabricmc.api.ModInitializer;
+
+import net.guag.simplemodmanager.screen.ContentManagerScreen;
+import net.guag.simplemodmanager.util.FileUtils;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
-import net.fabricmc.api.ModInitializer;
-
+//test seed: -781932279150905825
 
 public class SimpleModManager implements ModInitializer, ClientModInitializer {
 	private static KeyMapping openUIBinding;
@@ -40,7 +43,7 @@ public class SimpleModManager implements ModInitializer, ClientModInitializer {
 				Minecraft mc = Minecraft.getInstance();
 				if (mc.screen == null) {
 					// Pass the client and the hardcoded mod toggles (loaded from file folders)
-					mc.setScreen(new ModManagerScreen(mc, ModUtils.getModToggles(), ModUtils.getResourceToggles(), ModUtils.getShaderToggles()));
+					mc.setScreen(new ContentManagerScreen(mc, FileUtils.getModToggles(), FileUtils.getResourceToggles(), FileUtils.getShaderToggles()));
 				}
 			}
 		});

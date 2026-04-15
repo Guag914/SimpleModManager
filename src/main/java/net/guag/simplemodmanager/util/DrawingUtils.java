@@ -1,12 +1,15 @@
 package net.guag.simplemodmanager.util;
 
+import net.guag.simplemodmanager.screen.FileToggle;
 
-import net.guag.simplemodmanager.screen.ModToggle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
+
+import com.mojang.blaze3d.platform.NativeImage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
@@ -21,10 +24,12 @@ public class DrawingUtils {
 
     private final Map<String, Identifier> iconCache = new HashMap<>();
 
+    public static final Logger LOGGER = LoggerFactory.getLogger("simplemodmanager");
+
     // Use Minecraft texture as the primary default (this definitely exists)
     private static final Identifier DEFAULT_ICON = Identifier.fromNamespaceAndPath("simplemodmanager", "textures/gui/mod_icon.png");
 
-    public Identifier getModIcon(ModToggle mod) {
+    public Identifier getModIcon(FileToggle mod) {
         File modFile = mod.getFile();
         String modId = modFile.getName();
 
@@ -32,7 +37,7 @@ public class DrawingUtils {
 
         if (!modFile.exists()) {
             File enabledFile = new File("mods", modFile.getName());
-            File disabledFile = new File("disabled-mods", modFile.getName());
+            File disabledFile = new File("mods/disabled-mods", modFile.getName());
             if (enabledFile.exists()) modFile = enabledFile;
             else if (disabledFile.exists()) modFile = disabledFile;
             else { iconCache.put(modId, null); return null; }
@@ -55,15 +60,15 @@ public class DrawingUtils {
                 return textureId;
             }
         } catch (Exception e) {
-            System.err.println("Error loading icon for " + modFile.getName() + ": " + e.getMessage());
+            LOGGER.error("Error loading icon for {}: {}", modFile.getName(), e.getMessage());
         }
 
         iconCache.put(modId, null);
         return null;
     }
 
-    private JarEntry findIconEntry(JarFile jar, String modId, ModToggle toggle) {
-        // Check common known locations first
+    private JarEntry findIconEntry(JarFile jar, String modId, FileToggle toggle) {
+        // Check common-known locations first
         String primaryPath = toggle.getIconPath();
 
         String[] knownPaths = {
@@ -89,7 +94,7 @@ public class DrawingUtils {
                         .filter(e -> {
                             String name = e.getName().toLowerCase();
                             return name.endsWith(".png"); //since many mods use their mod-id.png for pack name
-//                            ( //since many mods use their name
+//                            (//since many mods use their name
 //                                    name.contains("icon") ||
 //                                            name.contains("logo") ||
 //                                            name.contains("pack")
@@ -99,7 +104,7 @@ public class DrawingUtils {
                         .orElse(null);
     }
 
-    public void renderImage(Identifier textureId, GuiGraphicsExtractor context, int x, int y, int iconSize) {
+    public static void renderImage(Identifier textureId, GuiGraphicsExtractor context, int x, int y, int iconSize) {
         if (textureId == null) return;
         try {
             context.blit(
@@ -114,7 +119,7 @@ public class DrawingUtils {
     }
 
     // Method to render with automatic fallback
-    public void renderModIcon(ModToggle mod, GuiGraphicsExtractor context, int x, int y, int iconSize) {
+    public void renderModIcon(FileToggle mod, GuiGraphicsExtractor context, int x, int y, int iconSize) {
         Identifier iconTexture = getModIcon(mod);
         // Use Minecraft's bundle texture as fallback
         renderImage(Objects.requireNonNullElse(iconTexture, DEFAULT_ICON), context, x, y, iconSize);

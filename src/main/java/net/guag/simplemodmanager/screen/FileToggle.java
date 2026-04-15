@@ -1,23 +1,24 @@
 package net.guag.simplemodmanager.screen;
 
-import com.google.gson.*;
+import net.guag.simplemodmanager.util.FileUtils;
+
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
-import net.guag.simplemodmanager.util.ModUtils;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import com.google.gson.*;
 
-public class ModToggle {
+public class FileToggle {
     private File file;
     private final String jarName;
     private boolean enabled;
@@ -29,23 +30,30 @@ public class ModToggle {
 
     private static final Set<String> defaultDisabledMods = new HashSet<>();
 
-    public ModToggle(File file, boolean enabled) {
+    public FileToggle(File file, boolean enabled) {
         this.file = file;
         this.enabled = enabled;
         this.jarName = file.getName();
-
     }
 
-
-    public void applyChange() {
+    public void applyChange(String type) {
         try {
-            if (enabled) {
-                this.file = ModUtils.moveModToEnabled(file);
-            } else {
-                this.file = ModUtils.moveModToDisabled(file);
+            switch (type) {
+                case "mod":
+                    if (enabled) { this.file = FileUtils.moveModToEnabled(file);}
+                    else { this.file = FileUtils.moveModToDisabled(file); }
+                    break;
+                case "resourcepack":
+                    if (enabled) { this.file = FileUtils.moveResourcePackToEnabled(file); FileUtils.enableResourcePack(this.getFile().getName());}
+                    else { this.file = FileUtils.moveResourcePackToDisabled(file); FileUtils.disableResourcePack(this.getFile().getName()); }
+                    break;
+                case "shaderpack":
+                    if (enabled) { this.file = FileUtils.moveShaderPackToEnabled(file);}
+                    else { this.file = FileUtils.moveShaderPackToDisabled(file); }
+                    break;
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to {} mod file: {}", enabled ? "enable" : "disable", file.getName(), e);
+            LOGGER.error("Failed to {} file: {}", enabled ? "enable" : "disable", file.getName(), e);
         }
     }
 
@@ -71,7 +79,7 @@ public class ModToggle {
     }
 
     private static void scanDisabledModsFolder() {
-        File disabledDir = new File(Minecraft.getInstance().gameDirectory, "disabled-mods");
+        File disabledDir = new File(Minecraft.getInstance().gameDirectory, "mods/disabled-mods");
         if (disabledDir.exists() && disabledDir.isDirectory()) {
             File[] files = disabledDir.listFiles((_, name) -> name.toLowerCase().endsWith(".jar"));
             if (files != null) {
@@ -133,35 +141,6 @@ public class ModToggle {
             LOGGER.error("Failed to get mod icon path: {}", this, e);
             return "Error reading metadata";
         }
-    }
-
-    public String getModId() {
-        File modFile = this.getFile();
-
-        if (!modFile.exists()) {
-            // Try the other folder — e.g., if enabled, check disabled, or vice versa
-            File altFile = new File("run/disabled-mods", modFile.getName());
-            if (altFile.exists()) modFile = altFile;
-        }
-
-        try (JarFile jar = new JarFile(modFile)) {
-            JarEntry entry = jar.getJarEntry("fabric.mod.json");
-            if (entry == null) return null;
-
-            try (InputStreamReader reader = new InputStreamReader(jar.getInputStream(entry), StandardCharsets.UTF_8)) {
-                JsonElement je = JsonParser.parseReader(reader);
-                if (!je.isJsonObject()) return null;
-
-                JsonObject root = je.getAsJsonObject();
-
-                if (root.has("id")) {
-                    return root.get("id").getAsString();
-                }
-            }
-        } catch (IOException e) {
-            LOGGER.error("Failed to get modID: {}", this, e);
-        }
-        return null;
     }
 
     public String getMetadataSummaryForMod() {
@@ -231,22 +210,89 @@ public class ModToggle {
         }
     }
 
+    public String getModId() {
+        File modFile = this.getFile();
+
+        if (!modFile.exists()) {
+            // Try the other folder — e.g., if enabled, check disabled, or vice versa
+            File altFile = new File("run/disabled-mods", modFile.getName());
+            if (altFile.exists()) modFile = altFile;
+        }
+
+        try (JarFile jar = new JarFile(modFile)) {
+            JarEntry entry = jar.getJarEntry("fabric.mod.json");
+            if (entry == null) return null;
+
+            try (InputStreamReader reader = new InputStreamReader(jar.getInputStream(entry), StandardCharsets.UTF_8)) {
+                JsonElement je = JsonParser.parseReader(reader);
+                if (!je.isJsonObject()) return null;
+
+                JsonObject root = je.getAsJsonObject();
+
+                if (root.has("id")) {
+                    return root.get("id").getAsString();
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.error("Failed to get modID: {}", this, e);
+        }
+        return null;
+    }
+
+    public ArrayList<String> getDependencies() {
+        File modFile = this.getFile();
+
+        try (JarFile jar = new JarFile(modFile)) {
+            JarEntry entry = jar.getJarEntry("fabric.mod.json");
+            if (entry == null) return new ArrayList<>(Collections.singleton("No dependencies"));
+
+            try (InputStreamReader reader = new InputStreamReader(jar.getInputStream(entry), StandardCharsets.UTF_8)) {
+                JsonElement je = JsonParser.parseReader(reader);
+                if (!je.isJsonObject()) return new ArrayList<>(Collections.singleton("Invalid dependencies"));
+
+                JsonObject depends = je.getAsJsonObject().getAsJsonObject("depends");
+                if (depends == null || !depends.isJsonObject()) return new ArrayList<>(Collections.singleton("No dependencies"));
+
+                ArrayList<String> dependencies = new ArrayList<>();
+
+                HashMap<String, String> converted = new HashMap<>();
+                for (String key : depends.keySet()) {
+                    JsonElement value = depends.get(key);
+                    if (value.isJsonArray()) {
+                        // Take the first element of the array as the version string
+                        JsonArray arr = value.getAsJsonArray();
+                        converted.put(key, !arr.isEmpty() ? arr.get(0).getAsString() : "");
+                    } else {
+                        converted.put(key, value.getAsString());
+                    }
+                }
+
+                Set<String> ignored = Set.of("fabricloader", "minecraft", "java");
+                for (Map.Entry<String, String> dependency : converted.entrySet()) {
+                    if (!ignored.contains(dependency.getKey())) {
+                        dependencies.add(dependency.getKey());
+                    }
+                }
+
+                return dependencies;
+
+            }
+        } catch (IOException e) {
+            LOGGER.error("Failed to get mod description: {}", this, e);
+            return new ArrayList<>(Collections.singleton("Error reading dependencies"));
+        }
+    }
+
     //Getters
     public String getJarName() {return this.jarName;}
     public String getDisplayName() {return jarName.replaceAll("\\.(jar|zip)$", "");}
-    public void toggled() {
-        this.enabled = !this.enabled;
-    }
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public void toggled() { this.enabled = !this.enabled; }
+    public boolean isEnabled() { return enabled; }
     public File getFile() {return file;}
-    public Component getButtonText() {return Component.literal(enabled ? "§aEnabled " : "§7Disabled ");}
+    public Component getButtonText() { return Component.literal(enabled ? "§aEnabled " : "§7Disabled "); }
     public static boolean isDisabledByDefault(String modFileName) {return defaultDisabledMods.contains(modFileName.toLowerCase());}
 
     //Setters
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
 }

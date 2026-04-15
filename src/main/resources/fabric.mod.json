@@ -12,7 +12,7 @@
 		"sources": "https://github.com/Guag914/SimpleModManager"
 	},
 	"license": "CC0-1.0",
-	"icon": "assets/simple-mod-manager/icon.png",
+	"icon": "assets/simplemodmanager/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
